@@ -106,7 +106,7 @@ def load_data(results_dir, dim, threshold):
     for f in rp.glob("*.csv"):
         with open(f, newline="") as fh:
             for row in csv.DictReader(fh):
-                if int(row["dim"]) != dim:
+                if int(row["dim"]) != dim:  # wrong dimension
                     continue
                 K = int(row["K"])
                 d = agg.setdefault(K, {
@@ -114,20 +114,22 @@ def load_data(results_dir, dim, threshold):
                     "dla_ok": 0, "dla_tot": 0,          # reachable count among full-DLA targets
                     "no_ok": 0, "no_tot": 0,            # reachable count among no-DLA targets
                 })
-                checked = (str(row.get("check_dla", "")) == "1")
-                timed_out = (str(row.get("timed_out", "")) == "1")
-                nr = row.get("n_rejected", "")
-                if not _blank(nr):
+                checked = (str(row.get("check_dla", "")) == "1")   # full-DLA Hamiltonian search attempted at current row?
+                timed_out = (str(row.get("timed_out", "")) == "1") # full-DLA Hamiltonian not found? (there's like 60 sec timeout)
+                nr = row.get("n_rejected", "")                     # and how many were rejeted?
+                if not _blank(nr):          # not blank === some Hamiltonianas were rejected, they go to DLA fraction calculations
                     d["rejected"] += int(float(nr))
                     if not timed_out:
-                        d["accepts"] += 1
-                ov = row.get("overlap", "")
-                if not _blank(ov):
+                        d["accepts"] += 1   #not timed out == Hamiltonian found.
+                ov = row.get("overlap", "") # found overlap
+                if not _blank(ov):          # idk could not find anything even with found Hamiltonian? let's assert later
                     ok = 1 if float(ov) >= threshold else 0
                     if checked:
                         d["dla_ok"] += ok; d["dla_tot"] += 1
                     else:
                         d["no_ok"] += ok; d["no_tot"] += 1
+                if not timed_out:
+                    assert not _blank(ov)
     return agg
 
 
