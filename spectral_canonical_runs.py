@@ -31,8 +31,9 @@ def one_run(run, dim, K, phi_key, ham_key, init_key,
     H_full = canonical.canonical_full(dim)
 
     if check_dla:
+        reject_function=lambda idx, dim: not canonical.connected_spanning(idx, dim)
         out, n_rejected = hamiltonians.select_random_full_dla(
-            ham_key, H_full, K, timeout, return_try_count=True)
+            ham_key, H_full, K, timeout, return_try_count=True, reject_function=reject_function)
         if out is None:                       # timed out
             return [dict(run=run, timed_out=1, n_rejected=n_rejected)]
         H_sub, idx = out
