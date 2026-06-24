@@ -6,6 +6,7 @@ import numpy as np
 import jax.numpy as jnp
 from scipy.linalg import expm
 import canonical
+import jax
 
 
 def load_runs(path):
@@ -56,14 +57,21 @@ def get_opt_hamiltonian(row, H_full=None):
         return None
     return jnp.tensordot(jnp.array(lam), H_sub, axes=1)
 
+def get_target_state(row):
+    seed, run, dim = row["seed"], row["run"], row["dim"]
+    master = jax.random.PRNGKey(seed)
+    k_phi, k_ham, k_init = jax.random.split(master, 3)
+    one_run_phi_key = jax.random.split(k_phi,run+1)[run]
+    if "state" in row and row["state"] is not None:
+        n_states = row["state"] + 1  # need at least state+1 keys
+        final_state_key = jax.random.split(one_run_phi_key, n_states)[row["state"]]
+    else:
+        final_state_key=one_run_phi_key
 
-def get_opt_state(row, H_full=None, psi=None):
-    """Reconstruct evolved state: exp(i*H_opt) @ psi."""
-    H = get_opt_hamiltonian(row, H_full)
-    if H is None:
-        return None
-    if psi is None:
-        psi = canonical.init_state(row["dim"])
-    H_np = np.array(H)
-    U = expm(1j * H_np)
-    return jnp.array(U @ np.array(psi))
+    return canonical.random_state(final_state_key, dim)
+
+ 
+    ####...
+    ### check if `state` row exists. 
+    ### if it does not exist, build all keys as in data generation, then use state key to generate a state.
+    ### if it exists, do as above, but split the state key, and generate n-th state as in data generation code.
