@@ -13,6 +13,7 @@ def parse_args():
     p.add_argument("--timeout", type=float, default=60.0)
     p.add_argument("--threshold", type=float, default=1.0)
     p.add_argument("--n_states", type=int, default=5)
+    p.add_argument("--eigendep_reject", action="store_true")
     return p.parse_args()
 
 import jax, jax.numpy as jnp
@@ -27,13 +28,21 @@ def make_keys(seed, N):
             jax.random.split(k_init, N))
 
 def one_run(run, nqubits, weight_min,weight_max, K, phi_key, ham_key, init_key,
-            check_dla, n_starts, timeout, threshold, n_states):
+            check_dla, n_starts, timeout, threshold, n_states,eigendep_reject=False):
     psi = paulis.init_state_qubits(nqubits)
     H_full = paulis.pauli_full(nqubits, weight_max, weight_min)
 
+    def reject_based_on_eigenvalue_lin_dep(idx,dim):
+        if eigendep_reject == False:
+            return False
+        Hk=H_full[jnp.array(idx)]
+        return hamiltonians.generically_have_nontrivial_real_linear_eigendependence(Hk,100)
+        #...as a proxy of *rational linear eigendependence*
+
+
     if check_dla:
         out, n_rejected = hamiltonians.select_random_full_dla(
-            ham_key, H_full, K, timeout, return_try_count=True)
+            ham_key, H_full, K, timeout, return_try_count=True,reject_function=reject_based_on_eigenvalue_lin_dep)
         if out is None:                       # timed out
             return [dict(run=run, timed_out=1, n_rejected=n_rejected)]
         H_sub, idx = out
@@ -68,7 +77,7 @@ def one_run(run, nqubits, weight_min,weight_max, K, phi_key, ham_key, init_key,
 import csv, os, uuid, datetime
 
 HEADER = ["run","state","nqubits","weight_min","weight_max","K","seed","check_dla","dla_full","timed_out",
-          "overlap","n_rejected","indices","lam_opt","n_starts","timestamp"]
+          "overlap","n_rejected","indices","lam_opt","n_starts","timestamp","eigendep_reject"]
 
 def main():
     a = parse_args()
@@ -90,10 +99,10 @@ def main():
 #            w.writerow(r)
             for r in one_run(run, a.nqubits,a.weight_min,a.weight_max, a.K, phi_keys[run], ham_keys[run],
                              init_keys[run], a.check_dla, a.n_starts,
-                             a.timeout, a.threshold, a.n_states):
+                             a.timeout, a.threshold, a.n_states,a.eigendep_reject):
                 r.update(nqubits=a.nqubits,weight_min=wmin,weight_max=a.weight_max, K=a.K, seed=a.seed,
                          check_dla=int(a.check_dla), n_starts=a.n_starts,
-                         timestamp=datetime.datetime.now().isoformat())
+                         timestamp=datetime.datetime.now().isoformat(),eigendep_reject=a.eigendep_reject)
                 w.writerow(r)
     print(path)
 
