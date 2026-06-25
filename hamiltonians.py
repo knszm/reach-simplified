@@ -25,14 +25,14 @@ def generically_have_nontrivial_real_linear_eigendependence(H_k, Nsamples,initia
         if ratio > best_ratio:
             best_ratio = ratio; best_lam = lam
 
-    print(f'best: {best_ratio}')
+  #  print(f'best: {best_ratio}')
     #... or return True, if the `largest` is still tiny.
     if best_ratio < 1e-3:
         return True
     #for this weight , and remaining Nsamples-initial_Nsamples, do the following:
     #sample weights in a ball with radius `max_perturbation`.
     radius = max_perturbation(H_k, best_lam)
-    print(f'radius: {radius}')
+ #   print(f'radius: {radius}')
     samples = []
     for _ in range(Nsamples - initial_Nsamples):
         d = np.random.normal(size= (K));
